@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="WatchNews">
+  <link rel="manifest" href="manifest.json">
+  <title>WatchNews</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --amber: #ff8c00;
+      --amber-dim: #7a4200;
+      --amber-glow: rgba(255, 140, 0, 0.15);
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #1e1e1e;
+      --text: #cc7000;
+      --text-dim: #4a3000;
+      --green: #00cc44;
+      --red: #cc2200;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px 60px;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    .header {
+      text-align: center;
+      padding: 32px 0 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      color: var(--amber);
+      text-shadow: 0 0 20px var(--amber), 0 0 40px rgba(255,140,0,0.3);
+      margin-bottom: 6px;
+    }
+
+    .logo span { font-size: 20px; margin-right: 8px; }
+
+    .subtitle {
+      font-size: 10px;
+      color: var(--amber-dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    /* ── Status display ──────────────────────────── */
+    .lcd-display {
+      background: #050505;
+      border: 1px solid var(--amber-dim);
+      border-radius: 4px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 10px var(--amber-glow);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      flex-shrink: 0;
+      transition: all 0.3s;
+    }
+    .status-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-text {
+      font-size: 11px;
+      color: var(--text);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Section labels ──────────────────────────── */
+    .section-label {
+      font-size: 9px;
+      letter-spacing: 0.4em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Category grid ───────────────────────────── */
+    .category-section {
+      margin-bottom: 28px;
+    }
+
+    .category-group {
+      margin-bottom: 20px;
+    }
+
+    .group-label {
+      font-size: 8px;
+      letter-spacing: 0.5em;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      padding-left: 2px;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .cat-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cat-toggle.on {
+      border-color: var(--amber-dim);
+      background: #160c00;
+      box-shadow: inset 0 0 12px rgba(255,140,0,0.05);
+    }
+
+    .cat-toggle.on .cat-name { color: var(--amber); }
+    .cat-toggle:active { transform: scale(0.97); }
+
+    .cat-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 1px;
+      background: var(--border);
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .cat-toggle.on .cat-indicator {
+      background: var(--amber);
+      box-shadow: 0 0 6px var(--amber);
+    }
+
+    .cat-emoji { font-size: 14px; flex-shrink: 0; }
+
+    .cat-name {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+      transition: color 0.15s;
+    }
+
+    /* Select all/none */
+    .select-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .select-btn {
+      flex: 1;
+      padding: 7px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.15s;
+    }
+    .select-btn:active { background: var(--surface); color: var(--amber); }
+
+    /* ── Settings ────────────────────────────────── */
+    .settings-section { margin-bottom: 28px; }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-label {
+      font-size: 11px;
+      color: var(--text);
+      letter-spacing: 0.05em;
+    }
+
+    .setting-hint {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      letter-spacing: 0.05em;
+    }
+
+    .setting-input {
+      background: var(--surface);
+      border: 1px solid var(--amber-dim);
+      color: var(--amber);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 14px;
+      padding: 6px 10px;
+      width: 72px;
+      text-align: right;
+      border-radius: 2px;
+      outline: none;
+    }
+    .setting-input:focus { border-color: var(--amber); box-shadow: 0 0 8px var(--amber-glow); }
+
+    /* ── Buttons ─────────────────────────────────── */
+    .controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-family: 'Orbitron', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent);
+      pointer-events: none;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-start {
+      background: #1a0d00;
+      color: var(--amber);
+      border: 1px solid var(--amber-dim);
+      box-shadow: 0 0 15px var(--amber-glow);
+    }
+    .btn-start:active { box-shadow: 0 0 25px rgba(255,140,0,0.3); }
+
+    .btn-test {
+      background: #001a08;
+      color: #00cc44;
+      border: 1px solid #004415;
+    }
+
+    .btn-stop {
+      background: #1a0000;
+      color: #cc2200;
+      border: 1px solid #440000;
+    }
+
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { flex: 1; }
+
+    /* ── Permission banner ───────────────────────── */
+    .banner {
+      display: none;
+      padding: 12px 14px;
+      background: #0d0d00;
+      border: 1px solid #333300;
+      border-radius: 3px;
+      margin-bottom: 16px;
+      font-size: 10px;
+      color: #cc9900;
+      letter-spacing: 0.05em;
+      line-height: 1.6;
+    }
+    .banner.show { display: block; }
+
+    /* ── Footer note ─────────────────────────────── */
+    .note {
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      line-height: 1.8;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo"><span>⌚</span>WATCHNEWS</div>
+    <div class="subtitle">G-Shock GBX-100 · Full Article Feed</div>
+  </div>
+
+  <!-- Status display -->
+  <div class="lcd-display">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-text" id="statusText">IDLE — PRESS START TO BEGIN</div>
+  </div>
+
+  <!-- Permission warning -->
+  <div class="banner" id="permBanner">
+    ⚠ NOTIFICATION PERMISSION REQUIRED — Tap start and allow notifications when prompted. Without this, articles cannot be sent to your watch.
+  </div>
+
+  <!-- Categories -->
+  <div class="category-section">
+    <div class="section-label">Categories</div>
+
+    <div class="select-row">
+      <button class="select-btn" onclick="selectAll(true)">ALL ON</button>
+      <button class="select-btn" onclick="selectAll(false)">ALL OFF</button>
+    </div>
+
+    <div id="categoryContainer"></div>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings-section">
+    <div class="section-label">Settings</div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">INTERVAL (MIN)</div>
+        <div class="setting-hint">15 min minimum enforced by Android</div>
+      </div>
+      <input class="setting-input" type="number" id="interval" value="15" min="15" max="1440">
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">CHARS / CHUNK</div>
+        <div class="setting-hint">Characters per watch notification</div>
+      </div>
+      <input class="setting-input" type="number" id="chunkSize" value="280" min="80" max="500">
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn btn-start" onclick="startFeed()">▶ START FEED</button>
+    <div class="btn-row">
+      <button class="btn btn-test" onclick="fetchNow()">⚡ FETCH NOW</button>
+      <button class="btn btn-stop" onclick="stopFeed()">⏹ STOP</button>
+    </div>
+  </div>
+
+  <div class="note">
+    ARTICLES CYCLE THROUGH ENABLED CATEGORIES<br>
+    EACH CHUNK LABELED: 🏆 SPORTS [2/7]<br>
+    BACKGROUND SYNC REQUIRES CHROME FOR ANDROID
+  </div>
+
+</div>
+
+<script>
+// ── Category definitions ────────────────────────────────────────────────────
+const CATEGORIES = [
+  // News
+  { group:'NEWS',         name:'U.S. News',      emoji:'🇺🇸', rss:'https://feeds.apnews.com/rss/apf-topnews' },
+  { group:'NEWS',         name:'World News',     emoji:'🌍', rss:'https://feeds.bbci.co.uk/news/world/rss.xml' },
+  { group:'NEWS',         name:'Politics',       emoji:'🏛️', rss:'https://rss.politico.com/politics-news.xml' },
+  { group:'NEWS',         name:'Business',       emoji:'💰', rss:'https://www.cnbc.com/id/100003114/device/rss/rss.html' },
+  { group:'NEWS',         name:'Science',        emoji:'🔬', rss:'https://www.sciencedaily.com/rss/all.xml' },
+  { group:'NEWS',         name:'Health',         emoji:'🏥', rss:'https://feeds.npr.org/1128/rss.xml' },
+  { group:'NEWS',         name:'Environment',    emoji:'🌿', rss:'https://feeds.npr.org/1025/rss.xml' },
+  { group:'NEWS',         name:'Education',      emoji:'🎓', rss:'https://feeds.npr.org/1013/rss.xml' },
+  // Sports
+  { group:'SPORTS',       name:'Sports',         emoji:'🏆', rss:'https://feeds.bbci.co.uk/sport/rss.xml' },
+  { group:'SPORTS',       name:'NFL',            emoji:'🏈', rss:'https://www.espn.com/espn/rss/nfl/news' },
+  { group:'SPORTS',       name:'NBA',            emoji:'🏀', rss:'https://www.espn.com/espn/rss/nba/news' },
+  { group:'SPORTS',       name:'MLB',            emoji:'⚾', rss:'https://www.espn.com/espn/rss/mlb/news' },
+  { group:'SPORTS',       name:'Soccer',         emoji:'⚽', rss:'https://www.espn.com/espn/rss/soccer/news' },
+  { group:'SPORTS',       name:'MMA / Boxing',   emoji:'🥊', rss:'https://www.espn.com/espn/rss/mma/news' },
+  // Tech & Gaming
+  { group:'TECH',         name:'Tech',           emoji:'💻', rss:'https://www.theverge.com/rss/index.xml' },
+  { group:'TECH',         name:'AI',             emoji:'🤖', rss:'https://techcrunch.com/tag/artificial-intelligence/feed/' },
+  { group:'TECH',         name:'Gaming',         emoji:'🎮', rss:'https://feeds.ign.com/ign/all' },
+  { group:'TECH',         name:'Space',          emoji:'🚀', rss:'https://www.space.com/feeds/all' },
+  // Lifestyle
+  { group:'LIFESTYLE',    name:'Entertainment',  emoji:'🎬', rss:'https://variety.com/feed/' },
+  { group:'LIFESTYLE',    name:'Music',          emoji:'🎵', rss:'https://pitchfork.com/rss/news/' },
+  { group:'LIFESTYLE',    name:'Food',           emoji:'🍕', rss:'https://feeds.feedburner.com/eater/index' },
+  { group:'LIFESTYLE',    name:'Travel',         emoji:'✈️', rss:'https://feeds.feedburner.com/travelleisure/TxNb' },
+  { group:'LIFESTYLE',    name:'Automotive',     emoji:'🚗', rss:'https://www.motortrend.com/feeds/all/' },
+  { group:'LIFESTYLE',    name:'Fashion',        emoji:'👗', rss:'https://wwd.com/feed/' },
+  // Finance
+  { group:'FINANCE',      name:'Markets',        emoji:'📈', rss:'https://feeds.bloomberg.com/markets/news.rss' },
+  { group:'FINANCE',      name:'Crypto',         emoji:'₿',  rss:'https://cointelegraph.com/rss' },
+  // Other
+  { group:'OTHER',        name:'Military',       emoji:'🎖️', rss:'https://www.defensenews.com/arc/outboundfeeds/rss/' },
+  { group:'OTHER',        name:'Crime & Justice',emoji:'⚖️', rss:'https://feeds.npr.org/1015/rss.xml' },
+  { group:'OTHER',        name:'Weather',        emoji:'🌦️', rss:'https://www.wunderground.com/blog/weather-news/rss.xml' },
+];
+
+const DEFAULT_ON = ['U.S. News','World News','Sports','Tech'];
+const GROUP_ORDER = ['NEWS','SPORTS','TECH','LIFESTYLE','FINANCE','OTHER'];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let enabled = {};
+let sw = null;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  loadPrefs();
+  renderCategories();
+  await registerSW();
+  checkNotificationPermission();
+});
+
+function loadPrefs() {
+  const saved = JSON.parse(localStorage.getItem('wn_enabled') || '{}');
+  CATEGORIES.forEach(c => {
+    const key = catKey(c);
+    enabled[key] = key in saved ? saved[key] : DEFAULT_ON.includes(c.name);
+  });
+  document.getElementById('interval').value = localStorage.getItem('wn_interval') || '15';
+  document.getElementById('chunkSize').value = localStorage.getItem('wn_chunkSize') || '280';
+}
+
+function savePrefs() {
+  localStorage.setItem('wn_enabled', JSON.stringify(enabled));
+  localStorage.setItem('wn_interval', document.getElementById('interval').value);
+  localStorage.setItem('wn_chunkSize', document.getElementById('chunkSize').value);
+}
+
+function catKey(c) { return c.name.toLowerCase().replace(/[^a-z]/g, '_'); }
+
+// ── Render categories ──────────────────────────────────────────────────────
+function renderCategories() {
+  const container = document.getElementById('categoryContainer');
+  container.innerHTML = '';
+
+  GROUP_ORDER.forEach(group => {
+    const cats = CATEGORIES.filter(c => c.group === group);
+    if (!cats.length) return;
+
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'category-group';
+
+    const label = document.createElement('div');
+    label.className = 'group-label';
+    label.textContent = group;
+    groupDiv.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'category-grid';
+
+    cats.forEach(cat => {
+      const key = catKey(cat);
+      const toggle = document.createElement('div');
+      toggle.className = 'cat-toggle' + (enabled[key] ? ' on' : '');
+      toggle.innerHTML = `
+        <div class="cat-indicator"></div>
+        <span class="cat-emoji">${cat.emoji}</span>
+        <span class="cat-name">${cat.name}</span>
+      `;
+      toggle.addEventListener('click', () => {
+        enabled[key] = !enabled[key];
+        toggle.classList.toggle('on', enabled[key]);
+        savePrefs();
+      });
+      grid.appendChild(toggle);
+    });
+
+    groupDiv.appendChild(grid);
+    container.appendChild(groupDiv);
+  });
+}
+
+function selectAll(on) {
+  CATEGORIES.forEach(c => { enabled[catKey(c)] = on; });
+  renderCategories();
+  savePrefs();
+}
+
+// ── Service Worker ─────────────────────────────────────────────────────────
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) {
+    setStatus('error', 'SERVICE WORKER NOT SUPPORTED IN THIS BROWSER');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    sw = reg;
+  } catch(e) {
+    setStatus('error', 'SW REGISTRATION FAILED: ' + e.message);
+  }
+}
+
+// ── Build config object for service worker ─────────────────────────────────
+function buildConfig() {
+  // Load existing cat indices from localStorage
+  const savedCfg = JSON.parse(localStorage.getItem('wn_config') || '{}');
+
+  return {
+    catIndex: savedCfg.catIndex || 0,
+    chunkSize: parseInt(document.getElementById('chunkSize').value) || 280,
+    categories: CATEGORIES.map(c => {
+      const key = catKey(c);
+      const saved = (savedCfg.categories || []).find(s => s.key === key) || {};
+      return {
+        key,
+        name: c.name,
+        emoji: c.emoji,
+        rssUrl: c.rss,
+        enabled: !!enabled[key],
+        artIndex: saved.artIndex || 0
+      };
+    })
+  };
+}
+
+async function pushConfigToSW(config) {
+  // Write to Cache Storage so SW can read it
+  const cache = await caches.open('watchnews-config');
+  await cache.put('/config', new Response(JSON.stringify(config), {
+    headers: { 'Content-Type': 'application/json' }
+  }));
+  // Also persist locally so we can reload artIndex etc
+  localStorage.setItem('wn_config', JSON.stringify(config));
+}
+
+// ── Start / Stop ───────────────────────────────────────────────────────────
+async function startFeed() {
+  if (!sw) { setStatus('error', 'SERVICE WORKER NOT READY'); return; }
+
+  const perm = await requestNotificationPermission();
+  if (!perm) { setStatus('error', 'NOTIFICATION PERMISSION DENIED'); return; }
+
+  savePrefs();
+  const config = buildConfig();
+  await pushConfigToSW(config);
+
+  const interval = parseInt(document.getElementById('interval').value) || 15;
+
+  // Register Periodic Background Sync
+  if ('periodicSync' in sw) {
+    try {
+      await sw.periodicSync.register('fetch-news', {
+        minInterval: interval * 60 * 1000
+      });
+      setStatus('active', `RUNNING — SYNC EVERY ${interval} MIN`);
+    } catch(e) {
+      // Fallback: in-app timer (only works while app is open)
+      startInAppTimer(interval);
+      setStatus('active', `RUNNING (IN-APP) — EVERY ${interval} MIN WHILE APP IS OPEN`);
+    }
+  } else {
+    startInAppTimer(interval);
+    setStatus('active', `RUNNING (IN-APP) — EVERY ${interval} MIN WHILE APP IS OPEN`);
+  }
+}
+
+function stopFeed() {
+  if (sw && 'periodicSync' in sw) {
+    sw.periodicSync.unregister('fetch-news').catch(() => {});
+  }
+  clearInterval(window._newsTimer);
+  setStatus('idle', 'STOPPED');
+}
+
+async function fetchNow() {
+  if (!sw) { setStatus('error', 'SERVICE WORKER NOT READY'); return; }
+  const perm = await requestNotificationPermission();
+  if (!perm) { setStatus('error', 'NOTIFICATION PERMISSION DENIED'); return; }
+
+  savePrefs();
+  const config = buildConfig();
+  await pushConfigToSW(config);
+
+  setStatus('active', 'FETCHING ARTICLE...');
+  const reg = await navigator.serviceWorker.ready;
+  reg.active.postMessage({ type: 'FETCH_NOW' });
+  setTimeout(() => {
+    if (document.getElementById('statusDot').classList.contains('active')) {
+      setStatus('active', 'ARTICLE SENT TO WATCH ✓');
+    }
+  }, 8000);
+}
+
+// ── In-app fallback timer ──────────────────────────────────────────────────
+function startInAppTimer(intervalMin) {
+  clearInterval(window._newsTimer);
+  window._newsTimer = setInterval(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    reg.active.postMessage({ type: 'FETCH_NOW' });
+  }, intervalMin * 60 * 1000);
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+async function requestNotificationPermission() {
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const result = await Notification.requestPermission();
+  checkNotificationPermission();
+  return result === 'granted';
+}
+
+function checkNotificationPermission() {
+  const banner = document.getElementById('permBanner');
+  if (Notification.permission !== 'granted') {
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className  = 'status-dot' + (state === 'active' ? ' active' : state === 'error' ? ' error' : '');
+  text.textContent = msg;
+}
+</script>
+</body>
+</html>

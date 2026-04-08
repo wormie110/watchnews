@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#0a0a0a"/>
+  <rect x="20" y="60" width="152" height="72" rx="6" fill="#111" stroke="#ff8c00" stroke-width="2"/>
+  <text x="96" y="105" font-family="monospace" font-size="36" fill="#ff8c00" text-anchor="middle" dominant-baseline="middle">⌚</text>
+  <rect x="72" y="24" width="48" height="36" rx="4" fill="#1a1a1a" stroke="#333" stroke-width="1"/>
+  <rect x="72" y="132" width="48" height="36" rx="4" fill="#1a1a1a" stroke="#333" stroke-width="1"/>
+</svg>
