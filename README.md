@@ -1,5 +1,5 @@
 [README.md](https://github.com/user-attachments/files/26582541/README.md)
-# ⌚ WatchNews PWA
+# WatchNews PWA
 
 Full news articles delivered as chunked notifications to your **G-Shock GBX-100**.
 
